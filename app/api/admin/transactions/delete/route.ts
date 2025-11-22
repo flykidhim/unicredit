@@ -1,61 +1,77 @@
+// app/api/admin/transactions/delete/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { TransactionStatus } from "@prisma/client";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type AdminTxnDeleteBody = {
+  transactionId: number | string;
+};
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-
-  if (!session || role !== "ADMIN") {
-    return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
-  }
-
   try {
-    const body = await req.json();
-    const { id } = body as { id: number };
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
 
-    if (!id) {
+    if (!session || role !== "ADMIN") {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    let body: AdminTxnDeleteBody;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "ID transazione mancante" },
+        { error: "Payload JSON non valido" },
         { status: 400 }
       );
     }
 
-    await prisma.$transaction(async (tx) => {
-      const existing = await tx.transaction.findUnique({
-        where: { id },
-      });
+    const { transactionId } = body;
 
-      if (!existing) {
-        throw new Error("Transazione non trovata");
-      }
+    const idNum =
+      typeof transactionId === "string"
+        ? parseInt(transactionId, 10)
+        : transactionId;
 
-      const amount = Number(existing.amount);
+    if (!Number.isFinite(idNum)) {
+      return NextResponse.json(
+        { error: "transactionId non valido" },
+        { status: 400 }
+      );
+    }
 
-      if (existing.fromAccountId) {
-        await tx.account.update({
-          where: { id: existing.fromAccountId },
-          data: { balance: { increment: amount } },
-        });
-      }
-      if (existing.toAccountId) {
-        await tx.account.update({
-          where: { id: existing.toAccountId },
-          data: { balance: { decrement: amount } },
-        });
-      }
-
-      await tx.transaction.delete({
-        where: { id },
-      });
+    const existing = await prisma.transaction.findUnique({
+      where: { id: idNum },
     });
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Transazione non trovata" },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.transaction.update({
+      where: { id: idNum },
+      data: {
+        status: TransactionStatus.CANCELLED,
+        description: `${existing.description} [annullata dall’amministratore]`,
+      },
+    });
+
+    return NextResponse.json({ transaction: updated });
   } catch (err: any) {
-    console.error("Admin tx delete error:", err);
+    console.error("Admin transaction delete error", err);
     return NextResponse.json(
-      { error: err.message || "Errore durante l'eliminazione" },
+      {
+        error: "Errore interno durante l’annullamento della transazione",
+        details: err?.message ?? "Unknown error",
+      },
       { status: 500 }
     );
   }

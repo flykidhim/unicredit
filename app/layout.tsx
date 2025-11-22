@@ -6,8 +6,7 @@ import { LayoutShell } from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
   title: "UniCredit Banking Clone",
-  description:
-    "Multilingual banking demo with landing, customer and admin areas.",
+  description: "Multilingual banking with landing, customer and admin areas.",
 };
 
 export default function RootLayout({

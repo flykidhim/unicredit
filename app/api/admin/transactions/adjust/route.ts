@@ -1,101 +1,93 @@
+// app/api/admin/transactions/adjust/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TransactionStatus, TransactionType } from "@prisma/client";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type AdminTxnAdjustBody = {
+  transactionId: number | string;
+  newAmount: string | number;
+  note?: string;
+};
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-
-  if (!session || role !== "ADMIN") {
-    return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
-  }
-
   try {
-    const body = await req.json();
-    const { accountId, amount, direction, description } = body as {
-      accountId: number;
-      amount: number;
-      direction: "CREDIT" | "DEBIT";
-      description?: string;
-    };
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
 
-    if (!accountId || !amount || amount <= 0) {
+    if (!session || role !== "ADMIN") {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    let body: AdminTxnAdjustBody;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "Dati mancanti o importo non valido" },
+        { error: "Payload JSON non valido" },
         { status: 400 }
       );
     }
 
-    const adminUser = await prisma.user.findUnique({
-      where: { email: session.user?.email || "" },
+    const { transactionId, newAmount, note } = body;
+
+    const idNum =
+      typeof transactionId === "string"
+        ? parseInt(transactionId, 10)
+        : transactionId;
+
+    if (!Number.isFinite(idNum)) {
+      return NextResponse.json(
+        { error: "transactionId non valido" },
+        { status: 400 }
+      );
+    }
+
+    const amountNum =
+      typeof newAmount === "string" ? parseFloat(newAmount) : newAmount;
+
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      return NextResponse.json(
+        { error: "Importo non valido" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.transaction.findUnique({
+      where: { id: idNum },
     });
 
-    const result = await prisma.$transaction(async (tx) => {
-      const account = await tx.account.findUnique({
-        where: { id: accountId },
-      });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Transazione non trovata" },
+        { status: 404 }
+      );
+    }
 
-      if (!account) {
-        throw new Error("Conto non trovato");
-      }
+    const newDescription =
+      note && note.trim().length > 0
+        ? `${existing.description} (rettifica admin: ${note.trim()})`
+        : existing.description;
 
-      if (direction === "DEBIT") {
-        const current = Number(account.balance);
-        if (current < amount) {
-          throw new Error("Saldo insufficiente per addebito admin");
-        }
-      }
-
-      if (direction === "CREDIT") {
-        await tx.account.update({
-          where: { id: accountId },
-          data: { balance: { increment: amount } },
-        });
-      } else {
-        await tx.account.update({
-          where: { id: accountId },
-          data: { balance: { decrement: amount } },
-        });
-      }
-
-      const transaction = await tx.transaction.create({
-        data: {
-          fromAccountId: direction === "DEBIT" ? accountId : null,
-          toAccountId: direction === "CREDIT" ? accountId : null,
-          userId: adminUser ? adminUser.id : null,
-          amount,
-          type:
-            direction === "CREDIT"
-              ? TransactionType.DEPOSIT
-              : TransactionType.WITHDRAWAL,
-          status: TransactionStatus.COMPLETED,
-          description:
-            description ||
-            (direction === "CREDIT"
-              ? "Rettifica saldo (accredito admin)"
-              : "Rettifica saldo (addebito admin)"),
-        },
-      });
-
-      return { transaction };
+    const updated = await prisma.transaction.update({
+      where: { id: idNum },
+      data: {
+        amount: amountNum.toString(), // Prisma will handle decimal
+        description: newDescription,
+      },
     });
 
-    // Return ISO string for createdAt so the client can use it directly
+    return NextResponse.json({ transaction: updated });
+  } catch (err: any) {
+    console.error("Admin transaction adjust error", err);
     return NextResponse.json(
       {
-        transaction: {
-          ...result.transaction,
-          createdAt: result.transaction.createdAt.toISOString(),
-        },
+        error: "Errore interno durante la rettifica della transazione",
+        details: err?.message ?? "Unknown error",
       },
-      { status: 201 }
-    );
-  } catch (err: any) {
-    console.error("Admin adjust error:", err);
-    return NextResponse.json(
-      { error: err.message || "Errore durante la rettifica" },
       { status: 500 }
     );
   }

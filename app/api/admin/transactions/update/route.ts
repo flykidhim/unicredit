@@ -1,109 +1,90 @@
+// app/api/admin/transactions/update/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { TransactionStatus, TransactionType } from "@prisma/client";
+import { TransactionStatus } from "@prisma/client";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type AdminTxnUpdateBody = {
+  transactionId: number | string;
+  description?: string;
+  status?: TransactionStatus;
+};
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-
-  if (!session || role !== "ADMIN") {
-    return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
-  }
-
   try {
-    const body = await req.json();
-    const {
-      id,
-      fromAccountId,
-      toAccountId,
-      amount,
-      type,
-      status,
-      description,
-      createdAt,
-    } = body as {
-      id: number;
-      fromAccountId: number | null;
-      toAccountId: number | null;
-      amount: number;
-      type: TransactionType;
-      status: TransactionStatus;
-      description: string;
-      createdAt: string;
-    };
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
 
-    if (!id || !amount || amount <= 0) {
+    if (!session || role !== "ADMIN") {
+      return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    }
+
+    let body: AdminTxnUpdateBody;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "Dati mancanti o importo non valido" },
+        { error: "Payload JSON non valido" },
         { status: 400 }
       );
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const existing = await tx.transaction.findUnique({
-        where: { id },
-      });
+    const { transactionId, description, status } = body;
+    const idNum =
+      typeof transactionId === "string"
+        ? parseInt(transactionId, 10)
+        : transactionId;
 
-      if (!existing) {
-        throw new Error("Transazione non trovata");
-      }
+    if (!Number.isFinite(idNum)) {
+      return NextResponse.json(
+        { error: "transactionId non valido" },
+        { status: 400 }
+      );
+    }
 
-      const oldAmount = Number(existing.amount);
-      const oldFromId = existing.fromAccountId;
-      const oldToId = existing.toAccountId;
-
-      // 1) revert old effect on balances
-      if (oldFromId) {
-        await tx.account.update({
-          where: { id: oldFromId },
-          data: { balance: { increment: oldAmount } },
-        });
-      }
-      if (oldToId) {
-        await tx.account.update({
-          where: { id: oldToId },
-          data: { balance: { decrement: oldAmount } },
-        });
-      }
-
-      // 2) apply new effect
-      if (fromAccountId) {
-        await tx.account.update({
-          where: { id: fromAccountId },
-          data: { balance: { decrement: amount } },
-        });
-      }
-      if (toAccountId) {
-        await tx.account.update({
-          where: { id: toAccountId },
-          data: { balance: { increment: amount } },
-        });
-      }
-
-      // 3) update transaction row
-      const updatedTx = await tx.transaction.update({
-        where: { id },
-        data: {
-          fromAccountId: fromAccountId ?? null,
-          toAccountId: toAccountId ?? null,
-          amount,
-          type,
-          status,
-          description,
-          createdAt: createdAt ? new Date(createdAt) : existing.createdAt,
-        },
-      });
-
-      return updatedTx;
+    const existing = await prisma.transaction.findUnique({
+      where: { id: idNum },
     });
 
-    return NextResponse.json(updated, { status: 200 });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Transazione non trovata" },
+        { status: 404 }
+      );
+    }
+
+    const data: any = {};
+    if (typeof description === "string") {
+      data.description = description.trim();
+    }
+    if (status) {
+      data.status = status;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json(
+        { error: "Nessun campo da aggiornare" },
+        { status: 400 }
+      );
+    }
+
+    const updated = await prisma.transaction.update({
+      where: { id: idNum },
+      data,
+    });
+
+    return NextResponse.json({ transaction: updated });
   } catch (err: any) {
-    console.error("Admin tx update error:", err);
+    console.error("Admin transaction update error", err);
     return NextResponse.json(
-      { error: err.message || "Errore durante la modifica" },
+      {
+        error: "Errore interno durante l’aggiornamento della transazione",
+        details: err?.message ?? "Unknown error",
+      },
       { status: 500 }
     );
   }
