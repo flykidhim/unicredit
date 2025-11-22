@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 38, 38, 38;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: "unicredit-regular", "Helvetica Neue", Helvetica, sans-serif;
+}
+
+/* Full-width content area (no max-width), just a bit of horizontal padding */
+.uc-container {
+  @apply w-full px-4 lg:px-6;
+}
+
+/* Main scrollable content (below header + subheader) */
+.uc-main-scroll {
+  padding-top: 132px; /* main header + small subheader */
+}
+
+/* On desktop, shift main content to the right of the sidebar
+   and add a little padding so it's not glued to it */
+@media (min-width: 1024px) {
+  .uc-main-scroll {
+    margin-left: 100px; /* match SidebarNav width */
+    padding-left: 12px; /* 👈 small gap from the sidebar */
+  }
+}
+
+/* Generic card style */
+.uc-card {
+  @apply bg-white rounded-lg shadow-sm border border-neutral-200;
+}
+
+/* Optional: subtle fade-in defaults for your scroll sections (used with data-fade-section) */
+[data-fade-section] {
+  will-change: transform, opacity;
+}
+/* Optional: nicer scrollbar for sidebar */
+aside nav::-webkit-scrollbar {
+  width: 6px;
+}
+aside nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+aside nav::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 999px;
+}
+aside nav:hover::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+}

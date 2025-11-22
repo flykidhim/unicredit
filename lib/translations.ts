@@ -1,0 +1,126 @@
+export type Lang = "it" | "en";
+
+export const translations: Record<Lang, Record<string, string>> = {
+  it: {
+    header_privati: "PRIVATI",
+    header_imprese: "IMPRESE",
+    header_chi_siamo: "CHI SIAMO",
+    header_contatti: "CONTATTI E FILIALI",
+    header_cerca: "CERCA",
+    header_numero_verde: "NUMERO VERDE",
+    sub_privati_famiglie: "PRIVATI E FAMIGLIE",
+    sub_private_banking: "PRIVATE BANKING E WEALTH MANAGEMENT",
+    hero_badge: "Comodo da gestire e con canone azzerabile",
+    hero_title: "CONTO GENIUS",
+    hero_subline:
+      "Canone a 1,90€ al mese che può essere azzerato se accrediti lo stipendio o la pensione.",
+    hero_btn: "Scopri di più",
+    hero_note: "Messaggio pubblicitario con finalità promozionale.",
+    prestito_title: "Prestito UniCredit",
+    prestito_sub: "I tuoi sogni a portata di mano",
+    prestito_body_1:
+      "Per esigenze di nuova liquidità, per estinguere altri prestiti e per acquisto o ristrutturazione di immobili.",
+    prestito_body_2:
+      "Nuovo cliente? Tasso fisso in PROMO al 6,99% TAEG max 9,25%, per le richieste di Prestito dal 26/07/25 al 19/12/25.",
+    prestito_btn: "Scopri di più",
+    prestito_note: "Messaggio pubblicitario con finalità promozionale.",
+    appunt_title: "Prenota un appuntamento nella Filiale a te più vicina",
+    appunt_btn: "Fissa un appuntamento",
+    mycare_title: "UniCredit My Care Autonomia",
+    mycare_sub: "Una scelta che guarda lontano",
+    mycare_btn: "Scopri di più",
+    mycare_note_1: "Messaggio pubblicitario",
+    mycare_note_2:
+      "Prima della sottoscrizione leggere attentamente il Set Informativo disponibile presso le Filiali della Banca e sul sito internet",
+    losapevi_title: "Lo sapevi che?",
+    app_title: "Non hai ancora l'App Mobile Banking?",
+    app_body:
+      "L'App è riservata agli aderenti al Servizio di Banca Multicanale, intestatari di conto corrente e/o titolari di carta ricaricabile con IBAN della Banca.",
+    app_btn: "SCARICA L'APP",
+    help_title: "Come possiamo aiutarti?",
+    help_card1_title: "Prendi appuntamento con UBook",
+    help_card1_p: "Cerca la Filiale più vicina a te",
+    help_card1_link: "Vai su UBook >",
+    help_card2_title: "Numero verde",
+    help_card2_p:
+      "Da telefono fisso e cellulare 800.57.57.57 (dall'estero +39 02 33408973)",
+    help_card2_link: "I nostri numeri di telefono >",
+    login_title: "Accedi alla tua Area Clienti",
+    login_email: "Email",
+    login_password: "Password",
+    login_button: "Accedi",
+    login_demo_hint:
+      "Per la usa mario.rossi@example.com / password123 (dopo aver lanciato il seed).",
+    register_title: "Apri un account demo",
+    dashboard_welcome: "Benvenuto nella tua Area Clienti",
+    dashboard_accounts: "I tuoi conti",
+    dashboard_transactions: "Ultime transazioni",
+    admin_title: "Admin – Panoramica banca",
+    admin_users: "Clienti",
+    admin_accounts: "Conti",
+    admin_transactions: "Transazioni",
+  },
+  en: {
+    header_privati: "RETAIL",
+    header_imprese: "BUSINESSES",
+    header_chi_siamo: "ABOUT US",
+    header_contatti: "CONTACTS & BRANCHES",
+    header_cerca: "SEARCH",
+    header_numero_verde: "TOLL-FREE",
+    sub_privati_famiglie: "PRIVATE & FAMILIES",
+    sub_private_banking: "PRIVATE BANKING & WEALTH MANAGEMENT",
+    hero_badge: "Easy to manage with waivable fees",
+    hero_title: "GENIUS ACCOUNT",
+    hero_subline:
+      "Monthly fee of €1.90 which can be waived if you credit your salary or pension.",
+    hero_btn: "Learn more",
+    hero_note: "Advertising message with promotional purposes.",
+    prestito_title: "UniCredit Loan",
+    prestito_sub: "Your dreams within reach",
+    prestito_body_1:
+      "For new liquidity needs, to extinguish other loans and for the purchase or renovation of properties.",
+    prestito_body_2:
+      "New customer? Fixed rate PROMO at 6.99% APR max 9.25%, for loan applications from 26/07/25 to 19/12/25.",
+    prestito_btn: "Learn more",
+    prestito_note: "Advertising message with promotional purposes.",
+    appunt_title: "Book an appointment at the branch closest to you",
+    appunt_btn: "Book an appointment",
+    mycare_title: "UniCredit My Care Autonomia",
+    mycare_sub: "A choice that looks to the future",
+    mycare_btn: "Learn more",
+    mycare_note_1: "Advertising message",
+    mycare_note_2:
+      "Before signing, carefully read the Information Set available at the Bank branches and on the website",
+    losapevi_title: "Did you know?",
+    app_title: "Haven't downloaded the Mobile Banking App yet?",
+    app_body:
+      "The App is reserved for Multichannel Banking Service subscribers who hold a current account and/or a prepaid card with IBAN issued by the Bank.",
+    app_btn: "DOWNLOAD THE APP",
+    help_title: "How can we help you?",
+    help_card1_title: "Book with UBook",
+    help_card1_p: "Find the branch closest to you",
+    help_card1_link: "Go to UBook >",
+    help_card2_title: "Toll-free number",
+    help_card2_p:
+      "From landline and mobile 800.57.57.57 (from abroad +39 02 33408973)",
+    help_card2_link: "Our phone numbers >",
+    login_title: "Log in to your Client Area",
+    login_email: "Email",
+    login_password: "Password",
+    login_button: "Log in",
+    login_demo_hint:
+      "For demo use mario.rossi@example.com / password123 (after running the seed).",
+    register_title: "Open a demo account",
+    dashboard_welcome: "Welcome to your Client Area",
+    dashboard_accounts: "Your accounts",
+    dashboard_transactions: "Latest transactions",
+    admin_title: "Admin – Bank overview",
+    admin_users: "Customers",
+    admin_accounts: "Accounts",
+    admin_transactions: "Transactions",
+  },
+};
+
+export function t(lang: Lang, key: string): string {
+  return translations[lang]?.[key] ?? translations["it"][key] ?? key;
+}

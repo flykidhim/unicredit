@@ -1,0 +1,121 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ===== ENUMS =====
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum AccountType {
+  CURRENT
+  SAVINGS
+  VAULT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER_OUT
+  TRANSFER_IN
+  TRANSFER_INTERNAL
+  PAYMENT_EXTERNAL
+  CARD_PAYMENT
+  FEE
+}
+
+// ===== MODELS =====
+
+model User {
+  id           Int           @id @default(autoincrement())
+  fullName     String
+  email        String        @unique
+  passwordHash String
+  role         Role          @default(USER)
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  accounts     Account[]
+  transactions Transaction[] @relation("UserTransactions")
+}
+
+model Account {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+
+  // Marketing / display label (e.g. "Conto Genius", "Risparmio")
+  name      String
+  // Logical type/category (current, savings, vault, etc.)
+  type      AccountType
+
+  iban      String        @unique
+  balance   Decimal       @default(0)
+  currency  String        @default("EUR")
+  status    AccountStatus @default(ACTIVE)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  transactionsFrom Transaction[] @relation("fromAccount")
+  transactionsTo   Transaction[] @relation("toAccount")
+}
+
+model Transaction {
+  id             Int               @id @default(autoincrement())
+
+  fromAccountId  Int?
+  toAccountId    Int?
+  fromAccount    Account?          @relation("fromAccount", fields: [fromAccountId], references: [id])
+  toAccount      Account?          @relation("toAccount", fields: [toAccountId], references: [id])
+
+  // Who initiated it (optional – e.g. system fees might be null)
+  userId         Int?
+  user           User?             @relation("UserTransactions", fields: [userId], references: [id])
+
+  amount         Decimal
+  type           TransactionType
+  description    String
+  status         TransactionStatus @default(COMPLETED)
+
+  createdAt      DateTime          @default(now())
+}
+
+model ContentItem {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title_it  String
+  title_en  String
+  body_it   String
+  body_en   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
