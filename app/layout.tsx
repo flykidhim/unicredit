@@ -6,7 +6,7 @@ import { LayoutShell } from "@/components/LayoutShell";
 import { AuthSessionProvider } from "@/components/AuthSessionProvider";
 
 export const metadata: Metadata = {
-  title: "UniCredit Banking Clone",
+  title: "UniCredit Banking",
   description:
     "Multilingual banking demo with landing, customer and admin areas.",
 };
