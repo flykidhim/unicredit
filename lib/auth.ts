@@ -2,18 +2,23 @@
 import type { NextAuthOptions } from "next-auth";
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role, UserStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
+  // ✅ Make sure this matches NEXTAUTH_SECRET in Vercel & .env.local
+  secret: process.env.NEXTAUTH_SECRET,
+
   session: {
     strategy: "jwt",
   },
+
   pages: {
     signIn: "/login",
   },
+
   providers: [
     CredentialsProvider({
       name: "Credenziali",
@@ -31,7 +36,11 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) return null;
-        if (user.status !== "ACTIVE") return null;
+
+        // Only ACTIVE users can log in
+        if (user.status !== UserStatus.ACTIVE) {
+          return null;
+        }
 
         const isValid = await bcrypt.compare(
           credentials.password,
@@ -40,41 +49,42 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) return null;
 
-        // Return only what we need; we'll read more from Prisma via `user` here
+        // Only return what you need on the token
         return {
           id: String(user.id),
           email: user.email,
           name: user.fullName,
-          role: user.role,
+          role: user.role as Role,
           fullName: user.fullName,
           profileImageUrl: user.profileImageUrl,
           dateOfBirth: user.dateOfBirth,
-          createdAt: user.createdAt,
+          createdAt: user.createdAt, // used as "customerSince"
         } as any;
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // On login
+      // Initial sign-in
       if (user) {
         const u = user as any;
 
         token.id = u.id;
+        token.email = u.email;
         token.role = u.role;
         token.fullName = u.fullName ?? u.name ?? "";
-        token.email = u.email;
         token.profileImageUrl = u.profileImageUrl ?? null;
         token.dateOfBirth = u.dateOfBirth ?? null;
 
-        // ✅ Use `createdAt` as "customer since" instead of a non-existent `customerSince` field
+        // use createdAt as "customer since"
         token.customerSince = u.createdAt ?? null;
 
-        // When user signs in, force a fresh OTP verification
+        // ✅ On every fresh login, force OTP again
         token.otpVerified = false;
       }
 
-      // On `useSession().update(...)` from the OTP page or profile page
+      // When you call useSession().update(...)
       if (trigger === "update" && session) {
         const s = session as any;
 
@@ -104,24 +114,24 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user && token) {
+        // Basic user identity
         (session.user as any).id = token.id;
-        session.user.name =
-          (token.fullName as string | undefined) ?? session.user.name ?? "";
         session.user.email =
           (token.email as string | undefined) ?? session.user.email ?? "";
+        session.user.name =
+          (token.fullName as string | undefined) ?? session.user.name ?? "";
 
+        // Extra fields
         (session.user as any).role =
           (token.role as string | undefined) ?? "USER";
         (session.user as any).profileImageUrl =
           (token.profileImageUrl as string | null | undefined) ?? null;
         (session.user as any).dateOfBirth =
           (token.dateOfBirth as string | Date | null | undefined) ?? null;
-
-        // Expose "customer since" based on token (which we filled from createdAt)
         (session.user as any).customerSince =
           (token.customerSince as string | Date | null | undefined) ?? null;
 
-        // OTP flag – default false if missing
+        // OTP flag
         (session.user as any).otpVerified =
           typeof token.otpVerified === "boolean" ? token.otpVerified : false;
       }
@@ -131,6 +141,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-// Needed for the /api/auth/[...nextauth]/route.ts
+// /api/auth/[...nextauth]/route.ts
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
