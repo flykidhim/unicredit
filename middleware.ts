@@ -1,38 +1,17 @@
 // middleware.ts
-import { withAuth } from "next-auth/middleware";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const authSecret = process.env.NEXTAUTH_SECRET;
+// 🔓 No auth logic here. All security checks happen in server layouts.
+// This avoids Edge/NextAuth token decoding issues that were causing
+// /app → /login bouncing in production.
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token as any;
+export function middleware(_req: NextRequest) {
+  return NextResponse.next();
+}
 
-    // If user is logged in but OTP not verified yet, force them to /otp
-    if (token && token.otpVerified === false) {
-      if (!req.nextUrl.pathname.startsWith("/otp")) {
-        const url = new URL("/otp", req.url);
-        return NextResponse.redirect(url);
-      }
-    }
-
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      // Only allow access if a token exists. If not,
-      // next-auth will redirect to pages.signIn ("/login")
-      authorized: ({ token }) => !!token,
-    },
-    pages: {
-      signIn: "/login",
-    },
-    // ✅ Must match lib/auth.ts & Vercel env
-    secret: authSecret,
-  }
-);
-
-// Only protect /app and /admin paths
+// You can even remove this config if you want it global; but since we
+// don't do anything here, it doesn't really matter. Keeping explicit.
 export const config = {
   matcher: ["/app/:path*", "/admin/:path*"],
 };

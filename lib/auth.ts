@@ -2,13 +2,13 @@
 import type { NextAuthOptions } from "next-auth";
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient, Role, UserStatus } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
-  // ✅ Make sure this matches NEXTAUTH_SECRET in Vercel & .env.local
+  // 🔐 Make sure this env var is set on Vercel + .env.local
   secret: process.env.NEXTAUTH_SECRET,
 
   session: {
@@ -38,9 +38,7 @@ export const authOptions: NextAuthOptions = {
         if (!user) return null;
 
         // Only ACTIVE users can log in
-        if (user.status !== UserStatus.ACTIVE) {
-          return null;
-        }
+        if (user.status !== "ACTIVE") return null;
 
         const isValid = await bcrypt.compare(
           credentials.password,
@@ -49,12 +47,12 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) return null;
 
-        // Only return what you need on the token
+        // Return only what we need
         return {
           id: String(user.id),
           email: user.email,
           name: user.fullName,
-          role: user.role as Role,
+          role: user.role,
           fullName: user.fullName,
           profileImageUrl: user.profileImageUrl,
           dateOfBirth: user.dateOfBirth,
@@ -66,25 +64,25 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // Initial sign-in
+      // On login
       if (user) {
         const u = user as any;
 
         token.id = u.id;
-        token.email = u.email;
         token.role = u.role;
         token.fullName = u.fullName ?? u.name ?? "";
+        token.email = u.email;
         token.profileImageUrl = u.profileImageUrl ?? null;
         token.dateOfBirth = u.dateOfBirth ?? null;
 
-        // use createdAt as "customer since"
+        // Use createdAt as "customer since"
         token.customerSince = u.createdAt ?? null;
 
-        // ✅ On every fresh login, force OTP again
+        // Force a fresh OTP verification on each sign-in
         token.otpVerified = false;
       }
 
-      // When you call useSession().update(...)
+      // When you call useSession().update(...) (OTP page, profile, etc.)
       if (trigger === "update" && session) {
         const s = session as any;
 
@@ -114,24 +112,24 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user && token) {
-        // Basic user identity
         (session.user as any).id = token.id;
-        session.user.email =
-          (token.email as string | undefined) ?? session.user.email ?? "";
         session.user.name =
           (token.fullName as string | undefined) ?? session.user.name ?? "";
+        session.user.email =
+          (token.email as string | undefined) ?? session.user.email ?? "";
 
-        // Extra fields
         (session.user as any).role =
           (token.role as string | undefined) ?? "USER";
         (session.user as any).profileImageUrl =
           (token.profileImageUrl as string | null | undefined) ?? null;
         (session.user as any).dateOfBirth =
           (token.dateOfBirth as string | Date | null | undefined) ?? null;
+
+        // Expose "customer since"
         (session.user as any).customerSince =
           (token.customerSince as string | Date | null | undefined) ?? null;
 
-        // OTP flag
+        // OTP flag – default false if missing
         (session.user as any).otpVerified =
           typeof token.otpVerified === "boolean" ? token.otpVerified : false;
       }
@@ -141,6 +139,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-// /api/auth/[...nextauth]/route.ts
+// (Not used as a route in App Router, but harmless)
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
