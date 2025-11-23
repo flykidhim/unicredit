@@ -32,9 +32,10 @@ export default function LoginFormClient() {
 
     try {
       const res = await signIn("credentials", {
-        redirect: false,
+        redirect: false, // we handle redirect manually
         email,
         password,
+        callbackUrl: "/otp", // where NextAuth *would* send you
       });
 
       if (!res) {
@@ -51,9 +52,9 @@ export default function LoginFormClient() {
         return;
       }
 
-      // Login OK → vai alla dashboard cliente
-      router.push("/app");
-      router.refresh();
+      // ✅ Login OK → vai direttamente alla pagina OTP
+      router.push("/otp");
+      // router.refresh();  // non è strettamente necessario qui
     } catch (err) {
       console.error(err);
       setLocalError("Errore imprevisto. Riprova tra qualche minuto.");
@@ -164,7 +165,6 @@ export default function LoginFormClient() {
       {/* RIGHT – illustration / reassurance panel */}
       <div className="space-y-4 rounded-xl bg-[#f5f5f5] p-5 lg:p-6">
         <div className="relative h-[180px] w-full overflow-hidden rounded-lg bg-neutral-200">
-          {/* Put a real image here */}
           <Image
             src="/images/auth/login-hero.jpg"
             alt="Accesso sicuro all'Internet Banking"

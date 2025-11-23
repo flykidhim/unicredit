@@ -1,4 +1,4 @@
-# UniCredit Banking Clone – Full Starter
+# UniCredit Banking – Full Starter
 
 This is a **full Next.js 14 + Prisma** starter that gives you:
 
