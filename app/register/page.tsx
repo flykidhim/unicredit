@@ -8,8 +8,11 @@ import Link from "next/link";
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -18,124 +21,150 @@ export default function RegisterPage() {
     setError(null);
     setLoading(true);
 
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName, email, password }),
-    });
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          dateOfBirth: dateOfBirth || undefined,
+          profileImageUrl: profileImageUrl || undefined,
+        }),
+      });
 
-    setLoading(false);
+      const data = await res.json();
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Errore durante la registrazione");
-      return;
+      if (!res.ok) {
+        setError(data.error || "Registrazione non riuscita.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/login?registered=1");
+    } catch (err) {
+      console.error(err);
+      setError("Errore di rete. Riprova.");
+      setLoading(false);
     }
-
-    router.push("/login?registered=1");
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pt-[126px]">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-10 lg:flex-row lg:items-stretch">
-        {/* Left panel */}
-        <div className="flex-1 rounded-2xl bg-gradient-to-br from-[#ffd6d6] via-white to-[#f1f5f9] p-[2px] shadow-lg">
-          <div className="flex h-full flex-col justify-between rounded-2xl bg-white px-8 py-8">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#d73928]">
-                Nuovo Cliente
-              </p>
-              <h1 className="mt-3 text-3xl font-semibold leading-tight text-[#262626]">
-                Apri il tuo <span className="text-[#d73928]">Conto Online</span>{" "}
-                in pochi minuti
-              </h1>
-              <p className="mt-4 text-sm text-neutral-600">
-                Compila il modulo e ottieni subito l&apos;accesso all&apos;Area
-                Clienti per gestire conti, carte e pagamenti.
-              </p>
-            </div>
-
-            <ul className="mt-8 space-y-2 text-xs text-neutral-700">
-              <li>• Nessun canone di apertura</li>
-              <li>• Estratti conto sempre disponibili</li>
-              <li>• Accesso sicuro con credenziali personali</li>
-            </ul>
-          </div>
+    <div className="min-h-screen bg-[#f3f4f6]">
+      <div className="mx-auto flex min-h-screen max-w-4xl items-center px-4 py-10">
+        {/* LEFT: marketing */}
+        <div className="hidden flex-1 flex-col gap-4 pr-10 md:flex">
+          <h1 className="text-2xl font-semibold text-[#262626]">
+            Apri il tuo conto UniCredit demo
+          </h1>
+          <p className="text-sm text-neutral-600">
+            Crea un profilo cliente con pochi dati: potrai vedere i conti, i
+            movimenti e simulare le principali funzioni di Internet Banking.
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-neutral-600">
+            <li>• Profilo personale con foto e data di nascita</li>
+            <li>• Conto Genius demo con saldo e movimenti</li>
+            <li>• Accesso sicuro con credenziali personali</li>
+          </ul>
         </div>
 
-        {/* Right form */}
-        <div className="flex-1">
-          <div className="rounded-2xl bg-white p-7 shadow-lg">
-            <h2 className="text-xl font-semibold text-[#262626]">
-              Registrazione Area Clienti
-            </h2>
-            <p className="mt-1 text-sm text-neutral-600">
-              Inserisci i dati richiesti per creare il tuo profilo.
-            </p>
+        {/* RIGHT: form */}
+        <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-sm border border-neutral-200">
+          <h2 className="mb-1 text-lg font-semibold text-[#262626]">
+            Registrazione Area Clienti
+          </h2>
+          <p className="mb-4 text-xs text-neutral-500">
+            I dati inseriti servono solo per questa demo didattica.
+          </p>
 
-            {error && (
-              <div className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-neutral-700">
+                Nome e cognome
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:ring-1 focus:ring-[#007a91]"
+                required
+              />
+            </div>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-              <div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
                 <label className="text-xs font-semibold text-neutral-700">
-                  Nome e Cognome
+                  Data di nascita
+                </label>
+                <input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:ring-1 focus:ring-[#007a91]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-neutral-700">
+                  URL foto profilo (opzionale)
                 </label>
                 <input
                   type="text"
-                  className="mt-1 w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:bg-white"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
+                  value={profileImageUrl}
+                  onChange={(e) => setProfileImageUrl(e.target.value)}
+                  placeholder="/images/profile/default-avatar.png"
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:ring-1 focus:ring-[#007a91]"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="text-xs font-semibold text-neutral-700">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  className="mt-1 w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:bg-white"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-neutral-700">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:ring-1 focus:ring-[#007a91]"
+                required
+              />
+            </div>
 
-              <div>
-                <label className="text-xs font-semibold text-neutral-700">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  className="mt-1 w-full rounded-md border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:bg-white"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-                <p className="mt-1 text-[11px] text-neutral-500">
-                  Minimo 6 caratteri. Evita di riutilizzare password di altri
-                  servizi.
-                </p>
-              </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-neutral-700">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-[#007a91] focus:ring-1 focus:ring-[#007a91]"
+                required
+              />
+              <p className="text-[10px] text-neutral-500">
+                Usa almeno 8 caratteri, includendo lettere e numeri.
+              </p>
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 flex w-full items-center justify-center rounded-md bg-[#007a91] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#006276] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {loading ? "Registrazione in corso..." : "Crea il tuo profilo"}
-              </button>
-            </form>
+            {error && (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {error}
+              </p>
+            )}
 
-            <p className="mt-5 text-xs text-neutral-600">
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full rounded-md bg-[#007a91] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-800 disabled:opacity-70"
+            >
+              {loading ? "Registrazione in corso..." : "Crea il tuo profilo"}
+            </button>
+          </form>
+
+          <div className="mt-4 border-t border-neutral-200 pt-3 text-center text-xs text-neutral-600">
+            <p>
               Hai già un account?{" "}
               <Link
                 href="/login"

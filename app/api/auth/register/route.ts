@@ -1,59 +1,83 @@
 // app/api/auth/register/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { AccountType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+
+function generateIban() {
+  // Simple fake IBAN generator – looks realistic enough
+  const bankPart = "02008"; // fake bank code
+  const branchPart = "01633"; // fake branch code
+  const accountPart = String(
+    Math.floor(10_000_000 + Math.random() * 89_999_999)
+  ).padStart(11, "0");
+  return `IT60X${bankPart}${branchPart}0${accountPart}`;
+}
 
 export async function POST(req: Request) {
   try {
-    const { fullName, email, password } = await req.json();
+    const body = await req.json();
+
+    const {
+      fullName,
+      email,
+      password,
+      dateOfBirth, // "YYYY-MM-DD"
+      profileImageUrl,
+    } = body || {};
 
     if (!fullName || !email || !password) {
       return NextResponse.json(
-        { error: "Compila tutti i campi" },
+        { error: "Tutti i campi obbligatori devono essere compilati." },
         { status: 400 }
       );
     }
 
+    const normalizedEmail = String(email).toLowerCase().trim();
+
     const existing = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: "Esiste già un utente con questa email" },
+        { error: "Questa email è già registrata." },
         { status: 400 }
       );
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
+    const dobDate =
+      dateOfBirth && typeof dateOfBirth === "string" && dateOfBirth.length > 0
+        ? new Date(dateOfBirth)
+        : null;
+
+    await prisma.user.create({
       data: {
-        fullName,
-        email,
+        fullName: fullName.trim(),
+        email: normalizedEmail,
         passwordHash,
-        // role, status use defaults (USER / ACTIVE)
+        role: "USER",
+        status: "ACTIVE",
+        dateOfBirth: dobDate,
+        profileImageUrl: profileImageUrl || null,
+        accounts: {
+          create: {
+            name: "Conto Genius",
+            type: "CURRENT",
+            iban: generateIban(),
+            balance: 0,
+            currency: "EUR",
+          },
+        },
       },
     });
 
-    // Default CURRENT account for new user
-    await prisma.account.create({
-      data: {
-        userId: user.id,
-        name: "Conto Genius",
-        type: AccountType.CURRENT,
-        iban: `IT60X0542811101${String(user.id).padStart(11, "0")}`,
-        balance: 0,
-        currency: "EUR",
-      },
-    });
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     console.error("Register error:", err);
     return NextResponse.json(
-      { error: "Errore durante la registrazione" },
+      { error: "Errore durante la registrazione. Riprova più tardi." },
       { status: 500 }
     );
   }

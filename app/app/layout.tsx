@@ -19,12 +19,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     "Cliente UniCredit";
   const role = ((session.user as any)?.role || "USER") as "USER" | "ADMIN";
 
+  const profileImageUrl =
+    (session.user as any)?.profileImageUrl ||
+    "/images/profile/default-avatar.png";
+
   return (
     <div className="flex min-h-screen flex-col bg-[#f3f4f6]">
       {/* Sticky top header for user area */}
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 lg:px-6">
-          {/* Left: logo */}
+          {/* Left: logo + label */}
           <div className="flex items-center gap-3">
             <Link href="/app" className="flex items-center gap-2">
               <Image
@@ -35,9 +39,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 className="h-auto w-auto"
               />
             </Link>
+            <span className="hidden border-l border-neutral-300 pl-3 text-xs font-semibold uppercase tracking-[0.16em] text-neutral-600 sm:inline">
+              Area Clienti · Internet Banking
+            </span>
           </div>
 
-          {/* Center: main nav (desktop) */}
+          {/* Center: main nav */}
           <nav className="hidden items-center gap-4 text-[13px] font-medium text-neutral-600 md:flex">
             <NavTab href="/app" label="Panoramica" />
             <NavTab href="/app/accounts" label="Conti e carte" />
@@ -49,17 +56,67 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             )}
           </nav>
 
-          {/* Right: user info + logout */}
+          {/* Right: avatar + user info + logout */}
           <div className="flex items-center gap-3">
-            <div className="hidden flex-col items-end text-xs leading-tight text-neutral-700 sm:flex">
-              <span className="font-semibold">{userName}</span>
-              {/* Removed “Administrator · Internet Banking” tagline */}
+            {/* Avatar + name (desktop) */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* 👇 Avatar is now clickable, goes to /app/profile */}
+              <Link
+                href="/app/profile"
+                aria-label="Vai al profilo"
+                className="relative h-9 w-9 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100 hover:border-[#007a91] hover:ring-2 hover:ring-[#007a91]/20 transition"
+              >
+                {profileImageUrl ? (
+                  <Image
+                    src={profileImageUrl}
+                    alt={userName}
+                    fill
+                    sizes="36px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-600">
+                    {getInitials(userName)}
+                  </div>
+                )}
+              </Link>
+
+              <div className="hidden flex-col items-start text-xs leading-tight text-neutral-700 sm:flex">
+                <span className="font-semibold">{userName}</span>
+                <span className="text-[11px] text-neutral-500">
+                  {(role === "ADMIN" ? "Amministratore · " : "") +
+                    "Internet Banking"}
+                </span>
+              </div>
+            </div>
+
+            {/* On very small screens just show avatar/initials – also clickable */}
+            <div className="flex sm:hidden">
+              <Link
+                href="/app/profile"
+                aria-label="Vai al profilo"
+                className="relative h-8 w-8 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100 hover:border-[#007a91] hover:ring-2 hover:ring-[#007a91]/20 transition"
+              >
+                {profileImageUrl ? (
+                  <Image
+                    src={profileImageUrl}
+                    alt={userName}
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[11px] font-semibold text-neutral-600">
+                    {getInitials(userName)}
+                  </div>
+                )}
+              </Link>
             </div>
 
             <form action="/api/auth/signout" method="post">
               <button
                 type="submit"
-                className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:border-[#007a91] hover:bg-cyan-50 transition-colors"
+                className="rounded-full border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:border-[#007a91] hover:bg-cyan-50"
               >
                 Esci
               </button>
@@ -87,12 +144,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      {/* FOOTER – user area (no “demo” wording anymore) */}
+      {/* FOOTER – user area */}
       <footer className="border-t border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-3 text-[11px] text-neutral-500 sm:flex-row">
-          <span>© {new Date().getFullYear()} Internet Banking.</span>
+          <span>
+            © {new Date().getFullYear()} UniCredit · Area clienti demo.
+          </span>
           <span className="text-[11px] text-neutral-400">
-            Area clienti personale.
+            Progetto didattico – non è una vera banca.
           </span>
         </div>
       </footer>
@@ -110,9 +169,9 @@ function NavTab({
   variant?: "accent";
 }) {
   const base =
-    "whitespace-nowrap rounded-full px-3 py-1 bg-white text-neutral-700 border border-neutral-200 hover:border-[#007a91] hover:text-[#007a91] transition-colors";
+    "border-b-2 px-2 pb-1 border-transparent text-neutral-600 hover:border-neutral-300 hover:text-neutral-800";
   const accent =
-    "whitespace-nowrap rounded-full px-3 py-1 bg-[#007a91] text-white border border-[#007a91] hover:bg-cyan-800 transition-colors";
+    "border-b-2 px-2 pb-1 border-transparent text-[#007a91] hover:border-[#007a91]/70";
 
   return (
     <Link href={href} className={variant === "accent" ? accent : base}>
@@ -131,13 +190,20 @@ function NavPillMobile({
   variant?: "accent";
 }) {
   const base =
-    "whitespace-nowrap rounded-full border border-neutral-300 bg-white px-3 py-1 text-neutral-700 text-[11px]";
+    "whitespace-nowrap rounded-full px-3 py-1 bg-white text-neutral-700 border border-neutral-200";
   const accent =
-    "whitespace-nowrap rounded-full border border-[#007a91] bg-[#007a91] px-3 py-1 text-white text-[11px]";
+    "whitespace-nowrap rounded-full px-3 py-1 bg-[#007a91] text-white";
 
   return (
     <Link href={href} className={variant === "accent" ? accent : base}>
       {label}
     </Link>
   );
+}
+
+function getInitials(name: string | null | undefined) {
+  if (!name) return "UC";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
