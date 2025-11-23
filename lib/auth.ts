@@ -8,7 +8,8 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 export const authOptions: NextAuthOptions = {
-  // 🔐 Make sure this env var is set on Vercel + .env.local
+  // Make sure this is set in Vercel + .env.local
+  // NEXTAUTH_SECRET=your-long-random-hex
   secret: process.env.NEXTAUTH_SECRET,
 
   session: {
@@ -36,8 +37,6 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) return null;
-
-        // Only ACTIVE users can log in
         if (user.status !== "ACTIVE") return null;
 
         const isValid = await bcrypt.compare(
@@ -47,9 +46,9 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) return null;
 
-        // Return only what we need
+        // ✅ Return numeric id (matches Prisma schema)
         return {
-          id: String(user.id),
+          id: user.id,
           email: user.email,
           name: user.fullName,
           role: user.role,
@@ -64,11 +63,15 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // On login
+      // Initial sign-in
       if (user) {
         const u = user as any;
 
-        token.id = u.id;
+        // ✅ Ensure numeric id in token
+        const rawId = u.id;
+        token.id =
+          typeof rawId === "string" ? parseInt(rawId, 10) : rawId ?? null;
+
         token.role = u.role;
         token.fullName = u.fullName ?? u.name ?? "";
         token.email = u.email;
@@ -78,11 +81,11 @@ export const authOptions: NextAuthOptions = {
         // Use createdAt as "customer since"
         token.customerSince = u.createdAt ?? null;
 
-        // Force a fresh OTP verification on each sign-in
+        // Force fresh OTP on each login
         token.otpVerified = false;
       }
 
-      // When you call useSession().update(...) (OTP page, profile, etc.)
+      // When you call useSession().update(...) (OTP, profile, etc.)
       if (trigger === "update" && session) {
         const s = session as any;
 
@@ -112,7 +115,9 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user && token) {
+        // ✅ session.user.id will be numeric
         (session.user as any).id = token.id;
+
         session.user.name =
           (token.fullName as string | undefined) ?? session.user.name ?? "";
         session.user.email =
@@ -125,11 +130,9 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).dateOfBirth =
           (token.dateOfBirth as string | Date | null | undefined) ?? null;
 
-        // Expose "customer since"
         (session.user as any).customerSince =
           (token.customerSince as string | Date | null | undefined) ?? null;
 
-        // OTP flag – default false if missing
         (session.user as any).otpVerified =
           typeof token.otpVerified === "boolean" ? token.otpVerified : false;
       }
@@ -139,6 +142,6 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-// (Not used as a route in App Router, but harmless)
+// /api/auth/[...nextauth]/route.ts uses this
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

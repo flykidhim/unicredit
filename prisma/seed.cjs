@@ -22,7 +22,7 @@ async function main() {
       passwordHash: adminPasswordHash,
       role: "ADMIN",
       status: "ACTIVE",
-      // If you added these fields in your schema, uncomment:
+      // If you added these fields in your schema, you can uncomment:
       // dateOfBirth: new Date("1980-01-01"),
       // profileImageUrl: "/images/profile/default-admin.png",
     },
@@ -36,8 +36,6 @@ async function main() {
     update: {
       fullName: "William Taylor",
       profileImageUrl: "/images/profile/william-taylor.jpg",
-      // If you have dateOfBirth in schema, keep this:
-      // otherwise remove it.
       dateOfBirth: new Date("1979-11-05"),
     },
     create: {
@@ -55,16 +53,15 @@ async function main() {
 
   // 4. WILLIAM’S MAIN ACCOUNT
   //
-  // NOTE:
-  // - We upsert by IBAN so running the seed multiple times is safe.
-  // - Balance is set to 700,837.92 EUR as requested.
+  // - Upsert by IBAN so running the seed multiple times is safe.
+  // - Balance set to 700,837.92 EUR as requested.
   const williamAccount = await prisma.account.upsert({
     where: {
-      iban: "IT60X0542811101000000123456", // you can change to whatever you like
+      iban: "IT60X0542811101000000123456", // can be adjusted if needed
     },
     update: {
       userId: william.id,
-      balance: 700837.92,
+      balance: 700_837.92,
       currency: "EUR",
       name: "Conto Genius",
       type: "CURRENT",
@@ -75,7 +72,7 @@ async function main() {
       name: "Conto Genius",
       type: "CURRENT",
       iban: "IT60X0542811101000000123456",
-      balance: 700837.92,
+      balance: 700_837.92,
       currency: "EUR",
       status: "ACTIVE",
     },
@@ -83,89 +80,101 @@ async function main() {
 
   console.log("✅ William’s account upserted:", williamAccount.iban);
 
-  // 5. SOME SAMPLE TRANSACTIONS FOR WILLIAM
+  // 5. TRANSACTIONS FOR WILLIAM
   //
-  // These are just illustrative; the balance field is not auto-calculated from
-  // transactions, so it’s okay if they don’t mathematically sum exactly.
-  // Adjust or add more if you want heavier history later.
-  const existingWilliamTx = await prisma.transaction.count({
+  // We now WIPE his old transactions and insert the new deposits:
+  //
+  // - Deposit 100,466.46 on 23/08/2015
+  // - Deposit 70,364.64 on 11/02/2016
+  // - Deposit 120,463.99 on 09/12/2018
+  // - Deposit 150,346.76 on 21/05/2018
+  // - Deposit 52,461.45 on 15/09/2018
+  // - Deposit 66,000.00 on 27/11/2018
+  // - Deposit 140,735.63 on 07/01/2019
+
+  console.log("🧹 Deleting existing transactions for William…");
+  await prisma.transaction.deleteMany({
     where: { userId: william.id },
   });
 
-  if (existingWilliamTx === 0) {
-    console.log("📈 Seeding sample transactions for William…");
+  console.log("📈 Seeding new transactions for William…");
 
-    await prisma.transaction.createMany({
-      data: [
-        {
-          fromAccountId: null,
-          toAccountId: williamAccount.id,
-          userId: william.id,
-          amount: 250000.0,
-          type: "DEPOSIT",
-          description: "Bonifico stipendio annuale",
-          status: "COMPLETED",
-          createdAt: new Date("2019-01-10T09:30:00Z"),
-        },
-        {
-          fromAccountId: null,
-          toAccountId: williamAccount.id,
-          userId: william.id,
-          amount: 150000.0,
-          type: "DEPOSIT",
-          description: "Investimento rientrato",
-          status: "COMPLETED",
-          createdAt: new Date("2020-03-22T10:45:00Z"),
-        },
-        {
-          fromAccountId: williamAccount.id,
-          toAccountId: null,
-          userId: william.id,
-          amount: 50000.0,
-          type: "WITHDRAWAL",
-          description: "Acquisto immobiliare",
-          status: "COMPLETED",
-          createdAt: new Date("2020-06-05T14:10:00Z"),
-        },
-        {
-          fromAccountId: null,
-          toAccountId: williamAccount.id,
-          userId: william.id,
-          amount: 200000.0,
-          type: "DEPOSIT",
-          description: "Trasferimento da altra banca",
-          status: "COMPLETED",
-          createdAt: new Date("2021-11-15T11:00:00Z"),
-        },
-        {
-          fromAccountId: williamAccount.id,
-          toAccountId: null,
-          userId: william.id,
-          amount: 30000.0,
-          type: "CARD_PAYMENT",
-          description: "Spese carta credito",
-          status: "COMPLETED",
-          createdAt: new Date("2022-02-08T19:45:00Z"),
-        },
-        {
-          fromAccountId: williamAccount.id,
-          toAccountId: null,
-          userId: william.id,
-          amount: 5000.0,
-          type: "FEE",
-          description: "Canoni e commissioni varie",
-          status: "COMPLETED",
-          createdAt: new Date("2022-12-20T08:15:00Z"),
-        },
-      ],
-    });
+  await prisma.transaction.createMany({
+    data: [
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 100_466.46,
+        type: "DEPOSIT",
+        description: "Deposito stipendio e bonus annuale",
+        status: "COMPLETED",
+        createdAt: new Date("2015-08-23T09:30:00Z"), // 23/08/2015
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 70_364.64,
+        type: "DEPOSIT",
+        description: "Deposito risparmi famiglia",
+        status: "COMPLETED",
+        createdAt: new Date("2016-02-11T10:15:00Z"), // 11/02/2016
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 150_346.76,
+        type: "DEPOSIT",
+        description: "Bonifico da altra banca – portafoglio investimenti",
+        status: "COMPLETED",
+        createdAt: new Date("2018-05-21T11:00:00Z"), // 21/05/2018
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 52_461.45,
+        type: "DEPOSIT",
+        description: "Deposito risparmi personali",
+        status: "COMPLETED",
+        createdAt: new Date("2018-09-15T15:20:00Z"), // 15/09/2018
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 66_000.0,
+        type: "DEPOSIT",
+        description: "Trasferimento da conto estero",
+        status: "COMPLETED",
+        createdAt: new Date("2018-11-27T09:50:00Z"), // 27/11/2018
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 120_463.99,
+        type: "DEPOSIT",
+        description: "Rientro investimento obbligazionario",
+        status: "COMPLETED",
+        createdAt: new Date("2018-12-09T13:10:00Z"), // 09/12/2018
+      },
+      {
+        fromAccountId: null,
+        toAccountId: williamAccount.id,
+        userId: william.id,
+        amount: 140_735.63,
+        type: "DEPOSIT",
+        description: "Bonus straordinario e premi vari",
+        status: "COMPLETED",
+        createdAt: new Date("2019-01-07T10:30:00Z"), // 07/01/2019
+      },
+    ],
+  });
 
-    console.log("✅ Transactions for William seeded.");
-  } else {
-    console.log(
-      `ℹ️ William already has ${existingWilliamTx} transaction(s), skipping transaction seed.`
-    );
-  }
+  console.log("✅ New transactions for William seeded.");
 
   console.log("🌱 Seeding complete.");
 }

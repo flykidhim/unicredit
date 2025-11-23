@@ -12,9 +12,14 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const userId = (session.user as any).id as number | undefined;
+  // Raw id from session may be string or number
+  const rawId = (session.user as any).id;
 
-  if (!userId) {
+  const userId =
+    typeof rawId === "string" ? parseInt(rawId, 10) : (rawId as number | null);
+
+  // If id missing or NaN, treat as not logged in
+  if (!userId || Number.isNaN(userId)) {
     redirect("/login");
   }
 
@@ -29,7 +34,7 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const mainAccount = user.accounts[0] || null;
+  const mainAccount = user.accounts[0] ?? null;
   const profileImageUrl =
     user.profileImageUrl || "/images/profile/default-avatar.png";
 
@@ -67,6 +72,7 @@ export default async function ProfilePage() {
             </span>{" "}
             · Stato: <span className="font-medium">{user.status}</span>
           </p>
+
           {user.dateOfBirth && (
             <p className="text-xs text-neutral-500">
               Data di nascita:{" "}
@@ -77,6 +83,7 @@ export default async function ProfilePage() {
               })}
             </p>
           )}
+
           <p className="text-xs text-neutral-400">
             Cliente dal{" "}
             {user.createdAt.toLocaleDateString("it-IT", {
@@ -126,7 +133,6 @@ function getInitials(name: string) {
 }
 
 function formatCurrency(value: any, currency: string) {
-  // Prisma Decimal -> number
   const num = typeof value === "number" ? value : Number(value);
   return num.toLocaleString("it-IT", {
     style: "currency",
