@@ -9,19 +9,24 @@ import Image from "next/image";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
 
+  // Not logged in at all → to login
   if (!session) {
     redirect("/login");
   }
 
-  const userName =
-    session.user?.name ||
-    (session.user as any)?.fullName ||
-    "Cliente UniCredit";
-  const role = ((session.user as any)?.role || "USER") as "USER" | "ADMIN";
+  const user = session.user as any;
+
+  // If OTP not verified yet, always send to /otp
+  const otpVerified = user?.otpVerified === true;
+  if (!otpVerified) {
+    redirect("/otp");
+  }
+
+  const userName = user?.name || user?.fullName || "Cliente UniCredit";
+  const role = (user?.role || "USER") as "USER" | "ADMIN";
 
   const profileImageUrl =
-    (session.user as any)?.profileImageUrl ||
-    "/images/profile/default-avatar.png";
+    user?.profileImageUrl || "/images/profile/default-avatar.png";
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f3f4f6]">
@@ -58,14 +63,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
           {/* Right: avatar + user info + logout */}
           <div className="flex items-center gap-3">
-            {/* Avatar + name (desktop) */}
-            <div className="hidden sm:flex items-center gap-2">
-              {/* 👇 Avatar is now clickable, goes to /app/profile */}
-              <Link
-                href="/app/profile"
-                aria-label="Vai al profilo"
-                className="relative h-9 w-9 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100 hover:border-[#007a91] hover:ring-2 hover:ring-[#007a91]/20 transition"
-              >
+            {/* Avatar + text (desktop) */}
+            <Link
+              href="/app/profile"
+              className="hidden items-center gap-2 sm:flex"
+            >
+              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100">
                 {profileImageUrl ? (
                   <Image
                     src={profileImageUrl}
@@ -79,8 +82,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                     {getInitials(userName)}
                   </div>
                 )}
-              </Link>
-
+              </div>
               <div className="hidden flex-col items-start text-xs leading-tight text-neutral-700 sm:flex">
                 <span className="font-semibold">{userName}</span>
                 <span className="text-[11px] text-neutral-500">
@@ -88,15 +90,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                     "Internet Banking"}
                 </span>
               </div>
-            </div>
+            </Link>
 
-            {/* On very small screens just show avatar/initials – also clickable */}
-            <div className="flex sm:hidden">
-              <Link
-                href="/app/profile"
-                aria-label="Vai al profilo"
-                className="relative h-8 w-8 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100 hover:border-[#007a91] hover:ring-2 hover:ring-[#007a91]/20 transition"
-              >
+            {/* Small screens – avatar only */}
+            <Link href="/app/profile" className="flex sm:hidden">
+              <div className="relative h-8 w-8 overflow-hidden rounded-full border border-neutral-300 bg-neutral-100">
                 {profileImageUrl ? (
                   <Image
                     src={profileImageUrl}
@@ -110,8 +108,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                     {getInitials(userName)}
                   </div>
                 )}
-              </Link>
-            </div>
+              </div>
+            </Link>
 
             <form action="/api/auth/signout" method="post">
               <button
