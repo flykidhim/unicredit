@@ -3,10 +3,12 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { LangProvider } from "@/lib/lang-context";
 import { LayoutShell } from "@/components/LayoutShell";
+import { AuthSessionProvider } from "@/components/AuthSessionProvider";
 
 export const metadata: Metadata = {
   title: "UniCredit Banking Clone",
-  description: "Multilingual banking with landing, customer and admin areas.",
+  description:
+    "Multilingual banking demo with landing, customer and admin areas.",
 };
 
 export default function RootLayout({
@@ -17,9 +19,11 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body>
-        <LangProvider>
-          <LayoutShell>{children}</LayoutShell>
-        </LangProvider>
+        <AuthSessionProvider>
+          <LangProvider>
+            <LayoutShell>{children}</LayoutShell>
+          </LangProvider>
+        </AuthSessionProvider>
       </body>
     </html>
   );

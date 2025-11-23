@@ -4,7 +4,7 @@ export type SupportedLang = "it" | "en";
 export const translations = {
   it: {
     common: {
-      appName: "UniCredit Clone",
+      appName: "UniCredit",
     },
     header: {
       privati: "PRIVATI",
@@ -39,7 +39,7 @@ export const translations = {
   },
   en: {
     common: {
-      appName: "UniCredit Clone",
+      appName: "UniCredit",
     },
     header: {
       privati: "PERSONAL",

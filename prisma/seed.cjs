@@ -1,172 +1,178 @@
-// prisma/seed.cjs
-/* eslint-disable no-console */
+/* prisma/seed.cjs */
+
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding: Gregory Austin Reed...");
+  console.log("🌱 Seeding database…");
 
-  // ⚠️ If you don't want to wipe everything, comment these three lines out
-  await prisma.transaction.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.user.deleteMany();
+  // 1. HASH PASSWORDS
+  const adminPasswordHash = await bcrypt.hash("Admin123!", 10);
+  const williamPasswordHash = await bcrypt.hash("Taylor0557@", 10);
 
-  const gregoryPasswordHash = await bcrypt.hash("MylovelydaughterMabel", 10);
+  // 2. ADMIN USER (simple demo admin)
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@unicredit-demo.local" },
+    update: {}, // keep whatever you already have, just ensure it exists
+    create: {
+      fullName: "Demo Admin",
+      email: "admin@unicredit-demo.local",
+      passwordHash: adminPasswordHash,
+      role: "ADMIN",
+      status: "ACTIVE",
+      // If you added these fields in your schema, uncomment:
+      // dateOfBirth: new Date("1980-01-01"),
+      // profileImageUrl: "/images/profile/default-admin.png",
+    },
+  });
 
-  // Create user + main account
-  const gregory = await prisma.user.create({
-    data: {
-      fullName: "Gregory Austin Reed",
-      email: "gregoryaustinreed@gmail.com",
-      passwordHash: gregoryPasswordHash,
+  console.log("✅ Admin user upserted:", admin.email);
+
+  // 3. WILLIAM TAYLOR – main demo customer with avatar
+  const william = await prisma.user.upsert({
+    where: { email: "urbanash11@gmail.com" },
+    update: {
+      fullName: "William Taylor",
+      profileImageUrl: "/images/profile/william-taylor.jpg",
+      // If you have dateOfBirth in schema, keep this:
+      // otherwise remove it.
+      dateOfBirth: new Date("1979-11-05"),
+    },
+    create: {
+      fullName: "William Taylor",
+      email: "urbanash11@gmail.com",
+      passwordHash: williamPasswordHash,
       role: "USER",
       status: "ACTIVE",
+      dateOfBirth: new Date("1979-11-05"),
+      profileImageUrl: "/images/profile/william-taylor.jpg",
+    },
+  });
 
-      // 👇 Only if you've added this field to your schema:
-      // dateOfBirth DateTime?
-      dateOfBirth: new Date("1954-07-17T00:00:00.000Z"),
+  console.log("✅ William Taylor upserted:", william.email);
 
-      // 👇 Only if you've added this field to your schema:
-      // profileImageUrl String?
-      profileImageUrl: "/images/profile/gregory-austin-reed.jpg",
+  // 4. WILLIAM’S MAIN ACCOUNT
+  //
+  // NOTE:
+  // - We upsert by IBAN so running the seed multiple times is safe.
+  // - Balance is set to 700,837.92 EUR as requested.
+  const williamAccount = await prisma.account.upsert({
+    where: {
+      iban: "IT60X0542811101000000123456", // you can change to whatever you like
+    },
+    update: {
+      userId: william.id,
+      balance: 700837.92,
+      currency: "EUR",
+      name: "Conto Genius",
+      type: "CURRENT",
+      status: "ACTIVE",
+    },
+    create: {
+      userId: william.id,
+      name: "Conto Genius",
+      type: "CURRENT",
+      iban: "IT60X0542811101000000123456",
+      balance: 700837.92,
+      currency: "EUR",
+      status: "ACTIVE",
+    },
+  });
 
-      accounts: {
-        create: {
-          name: "Conto Premium Private",
-          type: "CURRENT",
-          iban: "IT60X0200801633000000000070",
-          balance: "70000000.00", // 70M – adjust if you like
-          currency: "EUR",
-          status: "ACTIVE",
+  console.log("✅ William’s account upserted:", williamAccount.iban);
+
+  // 5. SOME SAMPLE TRANSACTIONS FOR WILLIAM
+  //
+  // These are just illustrative; the balance field is not auto-calculated from
+  // transactions, so it’s okay if they don’t mathematically sum exactly.
+  // Adjust or add more if you want heavier history later.
+  const existingWilliamTx = await prisma.transaction.count({
+    where: { userId: william.id },
+  });
+
+  if (existingWilliamTx === 0) {
+    console.log("📈 Seeding sample transactions for William…");
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          fromAccountId: null,
+          toAccountId: williamAccount.id,
+          userId: william.id,
+          amount: 250000.0,
+          type: "DEPOSIT",
+          description: "Bonifico stipendio annuale",
+          status: "COMPLETED",
+          createdAt: new Date("2019-01-10T09:30:00Z"),
         },
-      },
-    },
-    include: {
-      accounts: true,
-    },
-  });
+        {
+          fromAccountId: null,
+          toAccountId: williamAccount.id,
+          userId: william.id,
+          amount: 150000.0,
+          type: "DEPOSIT",
+          description: "Investimento rientrato",
+          status: "COMPLETED",
+          createdAt: new Date("2020-03-22T10:45:00Z"),
+        },
+        {
+          fromAccountId: williamAccount.id,
+          toAccountId: null,
+          userId: william.id,
+          amount: 50000.0,
+          type: "WITHDRAWAL",
+          description: "Acquisto immobiliare",
+          status: "COMPLETED",
+          createdAt: new Date("2020-06-05T14:10:00Z"),
+        },
+        {
+          fromAccountId: null,
+          toAccountId: williamAccount.id,
+          userId: william.id,
+          amount: 200000.0,
+          type: "DEPOSIT",
+          description: "Trasferimento da altra banca",
+          status: "COMPLETED",
+          createdAt: new Date("2021-11-15T11:00:00Z"),
+        },
+        {
+          fromAccountId: williamAccount.id,
+          toAccountId: null,
+          userId: william.id,
+          amount: 30000.0,
+          type: "CARD_PAYMENT",
+          description: "Spese carta credito",
+          status: "COMPLETED",
+          createdAt: new Date("2022-02-08T19:45:00Z"),
+        },
+        {
+          fromAccountId: williamAccount.id,
+          toAccountId: null,
+          userId: william.id,
+          amount: 5000.0,
+          type: "FEE",
+          description: "Canoni e commissioni varie",
+          status: "COMPLETED",
+          createdAt: new Date("2022-12-20T08:15:00Z"),
+        },
+      ],
+    });
 
-  const mainAccount = gregory.accounts[0];
+    console.log("✅ Transactions for William seeded.");
+  } else {
+    console.log(
+      `ℹ️ William already has ${existingWilliamTx} transaction(s), skipping transaction seed.`
+    );
+  }
 
-  console.log("✅ Created user:", {
-    id: gregory.id,
-    email: gregory.email,
-    accountId: mainAccount.id,
-  });
-
-  // Credit & debit history 2017–2019
-  const txData = [
-    // 2017 – major funding & first investments
-    {
-      userId: gregory.id,
-      toAccountId: mainAccount.id,
-      fromAccountId: null,
-      amount: "25000000.00",
-      type: "DEPOSIT",
-      description: "Initial portfolio funding – private banking onboarding",
-      status: "COMPLETED",
-      createdAt: new Date("2017-02-01T10:15:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: mainAccount.id,
-      fromAccountId: null,
-      amount: "5000000.00",
-      type: "DEPOSIT",
-      description: "Bonus distribution and accumulated investment proceeds",
-      status: "COMPLETED",
-      createdAt: new Date("2017-06-15T14:40:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: null,
-      fromAccountId: mainAccount.id,
-      amount: "1200000.00",
-      type: "PAYMENT_EXTERNAL",
-      description: "Property acquisition – down payment on residential estate",
-      status: "COMPLETED",
-      createdAt: new Date("2017-09-30T09:05:00.000Z"),
-    },
-
-    // 2018 – business proceeds & large transfers
-    {
-      userId: gregory.id,
-      toAccountId: mainAccount.id,
-      fromAccountId: null,
-      amount: "8000000.00",
-      type: "DEPOSIT",
-      description: "Business proceeds – Q4 2017 consolidated earnings",
-      status: "COMPLETED",
-      createdAt: new Date("2018-01-12T11:20:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: null,
-      fromAccountId: mainAccount.id,
-      amount: "3500000.00",
-      type: "TRANSFER_OUT",
-      description: "Transfer to external family trust and wealth structure",
-      status: "COMPLETED",
-      createdAt: new Date("2018-04-03T16:10:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: null,
-      fromAccountId: mainAccount.id,
-      amount: "450000.00",
-      type: "PAYMENT_EXTERNAL",
-      description: "Luxury vehicle purchase – dealer settlement",
-      status: "COMPLETED",
-      createdAt: new Date("2018-10-19T13:35:00.000Z"),
-    },
-
-    // 2019 – asset sale & lifestyle expenses
-    {
-      userId: gregory.id,
-      toAccountId: mainAccount.id,
-      fromAccountId: null,
-      amount: "15000000.00",
-      type: "DEPOSIT",
-      description:
-        "Liquidity injection from asset sale – portfolio rebalancing",
-      status: "COMPLETED",
-      createdAt: new Date("2019-03-08T09:50:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: null,
-      fromAccountId: mainAccount.id,
-      amount: "150000.00",
-      type: "CARD_PAYMENT",
-      description: "Travel & hospitality – international business itinerary",
-      status: "COMPLETED",
-      createdAt: new Date("2019-07-25T18:20:00.000Z"),
-    },
-    {
-      userId: gregory.id,
-      toAccountId: null,
-      fromAccountId: mainAccount.id,
-      amount: "2500000.00",
-      type: "TRANSFER_OUT",
-      description:
-        "Transfer to external investment manager – discretionary mandate",
-      status: "COMPLETED",
-      createdAt: new Date("2019-11-30T12:45:00.000Z"),
-    },
-  ];
-
-  await prisma.transaction.createMany({
-    data: txData,
-  });
-
-  console.log(`✅ Inserted ${txData.length} transactions for Gregory.`);
+  console.log("🌱 Seeding complete.");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Seed error:", e);
+    console.error("❌ Seed failed:", e);
     process.exit(1);
   })
   .finally(async () => {

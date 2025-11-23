@@ -1,84 +1,91 @@
 // lib/auth.ts
-import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+import type { NextAuthOptions } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "./prisma";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
+  session: {
+    strategy: "jwt",
+  },
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
+    Credentials({
+      name: "Credenziali",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: {
+          label: "Email",
+          type: "email",
+          placeholder: "nome.cognome@example.com",
+        },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          throw new Error("Email e password sono obbligatori.");
+        if (!credentials?.email || !credentials?.password) {
+          return null;
         }
-
-        const email = credentials.email.toLowerCase().trim();
 
         const user = await prisma.user.findUnique({
-          where: { email },
+          where: { email: credentials.email },
         });
 
-        if (!user) {
-          throw new Error("Credenziali non valide.");
-        }
+        if (!user) return null;
+        if (user.status !== "ACTIVE") return null;
 
-        const isValid = await bcrypt.compare(
+        const valid = await bcrypt.compare(
           credentials.password,
           user.passwordHash
         );
+        if (!valid) return null;
 
-        if (!isValid) {
-          throw new Error("Credenziali non valide.");
-        }
-
-        // Strip sensitive fields and return minimal user object
+        // This object is what will be available as `user` in the jwt callback
         return {
           id: user.id,
           email: user.email,
+          name: user.fullName,
           fullName: user.fullName,
           role: user.role,
           status: user.status,
-          dateOfBirth: user.dateOfBirth,
-          profileImageUrl: user.profileImageUrl,
+          profileImageUrl: (user as any).profileImageUrl ?? null,
         } as any;
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-  },
   callbacks: {
-    async jwt({ token, user }) {
-      // On sign in
+    async jwt({ token, user, trigger, session }) {
+      // First time JWT is created – on sign in
       if (user) {
-        token.id = (user as any).id;
+        token.userId = (user as any).id;
         token.role = (user as any).role;
-        token.name = (user as any).fullName ?? (user as any).name ?? token.name;
-        token.status = (user as any).status;
-
-        const dob = (user as any).dateOfBirth;
-        token.dateOfBirth =
-          dob instanceof Date ? dob.toISOString() : dob ?? null;
+        token.fullName = (user as any).fullName || user.name;
         token.profileImageUrl = (user as any).profileImageUrl ?? null;
+
+        // Every fresh login must pass OTP again
+        token.otpVerified = false;
       }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        (session.user as any).status = token.status;
-        (session.user as any).dateOfBirth = token.dateOfBirth ?? null;
-        (session.user as any).profileImageUrl = token.profileImageUrl ?? null;
-        if (token.name) {
-          session.user.name = token.name as string;
+
+      // Allow client to update token fields via `session.update()`
+      if (trigger === "update" && session) {
+        if (Object.prototype.hasOwnProperty.call(session, "otpVerified")) {
+          (token as any).otpVerified = (session as any).otpVerified;
+        }
+        if (Object.prototype.hasOwnProperty.call(session, "profileImageUrl")) {
+          (token as any).profileImageUrl = (session as any).profileImageUrl;
         }
       }
+
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (session.user) {
+        (session.user as any).id = (token as any).userId;
+        (session.user as any).role = (token as any).role;
+        (session.user as any).fullName = (token as any).fullName;
+        (session.user as any).profileImageUrl =
+          (token as any).profileImageUrl ?? null;
+        (session.user as any).otpVerified = (token as any).otpVerified ?? false;
+      }
+
       return session;
     },
   },
